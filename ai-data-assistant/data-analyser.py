@@ -14,7 +14,7 @@ from groq import Groq
 # Load API Key
 # --------------------------------------------------
 
-KEY_PATH = r"samsung-ai\key-vault\groq-api.key"
+KEY_PATH = r"/Users/rishikm/VS/rishik-sic-hack/ai-data-analyser/work/groq.key"
 
 with open(KEY_PATH) as f:
     api_key = f.read().strip()
@@ -78,7 +78,7 @@ Question
 """
 
     response = client.chat.completions.create(
-        model="llama-3.1-8b-instant",
+        model="openai/gpt-oss-120b",
         messages=[
             {
                 "role": "user",
