@@ -5,7 +5,7 @@ from backend import get_groq_client, process_query, generate_insights
 # --------------------------------------------------
 # Page Configuration
 # --------------------------------------------------
-st.set_page_config(page_title="AI Data Assistant", page_icon="🖥️", layout="wide", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Datalens", page_icon="🔍", layout="wide", initial_sidebar_state="collapsed")
 
 # --------------------------------------------------
 # Design tokens & CSS  —  "Data Console" theme
@@ -178,7 +178,7 @@ st.markdown("""
 <div class="console-hero">
     <span class="dot"></span>
     <div>
-        <p class="title">AI Data Assistant</p>
+        <p class="title">🔍 Datalens</p>
         <p class="subtitle">Ask questions in plain English — get pandas code and results, instantly.</p>
     </div>
     <span class="badge">● groq / gpt-oss-120b</span>
@@ -226,7 +226,7 @@ if uploaded_file is not None:
         if "insights" not in st.session_state:
             with st.spinner("Generating insights..."):
                 st.session_state.insights = generate_insights(client, df)
-        st.markdown(st.session_state.insights)
+        st.markdown(st.session_state.insights.replace("$", "\\$"))
         panel_close()
 
     with dash_col:
@@ -238,19 +238,17 @@ if uploaded_file is not None:
         if num_cols:
             st.markdown("**Numerical Distributions**")
             for col in num_cols[:2]:
-                with st.container(border=True):
-                    st.markdown(f"*{col}*")
+                with st.expander(f"View {col} distribution"):
                     counts = df[col].value_counts(bins=10).sort_index()
                     counts.index = counts.index.map(lambda x: f"{x.left:.2g} to {x.right:.2g}")
-                    st.bar_chart(counts, height=150)
+                    st.bar_chart(counts)
                     
         if cat_cols:
             st.markdown("**Categorical Counts**")
             for col in cat_cols[:2]:
                 if df[col].nunique() < 20:
-                    with st.container(border=True):
-                        st.markdown(f"*{col}*")
-                        st.bar_chart(df[col].value_counts(), height=150)
+                    with st.expander(f"View {col} counts"):
+                        st.bar_chart(df[col].value_counts())
         panel_close()
 
     panel_open("query_console")

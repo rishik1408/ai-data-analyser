@@ -71,6 +71,7 @@ def generate_insights(client, df):
         Analyze the following dataset and provide 3-5 key business insights or interesting observations.
         Format your response as a clean, readable markdown list.
         Do not include any code, just the business insights.
+        IMPORTANT: Do NOT use the '$' symbol (use 'USD' instead) to prevent markdown math formatting errors.
         
         Columns: {list(df.columns)}
         Data Types: {df.dtypes.to_dict()}
