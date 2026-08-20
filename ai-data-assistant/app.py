@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from backend import get_groq_client, process_query
+from backend import get_groq_client, process_query, generate_insights
 
 # --------------------------------------------------
 # Page Configuration
@@ -190,12 +190,22 @@ col1, col2 = st.columns([1, 2])
 with col1:
     panel_open("1_data_source.csv")
     st.subheader("Data Source")
-    uploaded_file = st.file_uploader("Upload CSV", type=["csv"])
+    uploaded_file = st.file_uploader("Upload File", type=["csv", "xlsx", "xls"])
     panel_close()
 
 if uploaded_file is not None:
+    if "file_name" not in st.session_state or st.session_state.file_name != uploaded_file.name:
+        st.session_state.file_name = uploaded_file.name
+        if "insights" in st.session_state:
+            del st.session_state.insights
+        st.session_state.messages = []
+
     @st.cache_data
-    def load_data(file): return pd.read_csv(file)
+    def load_data(file): 
+        if file.name.endswith(".csv"):
+            return pd.read_csv(file)
+        else:
+            return pd.read_excel(file)
 
     df = load_data(uploaded_file)
 
@@ -206,6 +216,41 @@ if uploaded_file is not None:
         stat1.metric("Rows", f"{df.shape[0]:,}")
         stat2.metric("Columns", df.shape[1])
         stat3.metric("Memory Usage", f"{df.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
+        panel_close()
+
+    insight_col, dash_col = st.columns(2)
+    
+    with insight_col:
+        panel_open("automated_insights")
+        st.subheader("💡 Business Insights")
+        if "insights" not in st.session_state:
+            with st.spinner("Generating insights..."):
+                st.session_state.insights = generate_insights(client, df)
+        st.markdown(st.session_state.insights)
+        panel_close()
+
+    with dash_col:
+        panel_open("automated_dashboard")
+        st.subheader("📈 Automated Dashboard")
+        num_cols = df.select_dtypes(include=['number']).columns.tolist()
+        cat_cols = df.select_dtypes(include=['object', 'category']).columns.tolist()
+        
+        if num_cols:
+            st.markdown("**Numerical Distributions**")
+            for col in num_cols[:2]:
+                with st.container(border=True):
+                    st.markdown(f"*{col}*")
+                    counts = df[col].value_counts(bins=10).sort_index()
+                    counts.index = counts.index.map(lambda x: f"{x.left:.2g} to {x.right:.2g}")
+                    st.bar_chart(counts, height=150)
+                    
+        if cat_cols:
+            st.markdown("**Categorical Counts**")
+            for col in cat_cols[:2]:
+                if df[col].nunique() < 20:
+                    with st.container(border=True):
+                        st.markdown(f"*{col}*")
+                        st.bar_chart(df[col].value_counts(), height=150)
         panel_close()
 
     panel_open("query_console")
@@ -219,7 +264,7 @@ if uploaded_file is not None:
             st.markdown(f'<div class="chat-row"><div class="chat-ai">{message["content"]}</div></div>', unsafe_allow_html=True)
             if "result" in message and message["result"] is not None:
                 if isinstance(message["result"], (pd.DataFrame, pd.Series)):
-                    st.dataframe(message["result"], use_container_width=True)
+                    st.dataframe(message["result"])
                 else:
                     st.write(message["result"])
 
@@ -229,6 +274,7 @@ if uploaded_file is not None:
     if prompt := st.chat_input("E.g., Show the top 2 products by sales"):
         st.session_state.messages.append({"role": "user", "content": prompt})
         st.rerun()
+
 else:
     with col2:
         panel_open("awaiting_input")
@@ -236,7 +282,7 @@ else:
             <div class="empty-state">
                 <div class="glyph">📊</div>
                 <div class="h">No dataset loaded yet</div>
-                <div>Upload a CSV on the left to see stats and start asking questions.</div>
+                <div>Upload a CSV or Excel file on the left to see stats and start asking questions.</div>
             </div>
         """, unsafe_allow_html=True)
         panel_close()

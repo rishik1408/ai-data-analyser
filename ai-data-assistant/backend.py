@@ -55,3 +55,36 @@ def process_query(client, df, user_query):
     except Exception as e:
         failed_code = code if 'code' in locals() else "None generated"
         return failed_code, None, str(e)
+
+def generate_insights(client, df):
+    """
+    Generates business insights based on the dataframe schema and basic statistics.
+    """
+    try:
+        # Get basic statistics (limit to avoid token overflow)
+        stats = df.describe(include='all').to_string()
+        if len(stats) > 2000:
+            stats = stats[:2000] + "... (truncated)"
+        
+        llm_prompt = f"""
+        You are an expert business analyst.
+        Analyze the following dataset and provide 3-5 key business insights or interesting observations.
+        Format your response as a clean, readable markdown list.
+        Do not include any code, just the business insights.
+        
+        Columns: {list(df.columns)}
+        Data Types: {df.dtypes.to_dict()}
+        
+        Summary Statistics:
+        {stats}
+        """
+        
+        response = client.chat.completions.create(
+            model="openai/gpt-oss-120b",
+            messages=[{"role": "user", "content": llm_prompt}],
+            temperature=0.3,
+        )
+        
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Could not generate insights: {str(e)}"
